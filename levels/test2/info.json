@@ -1,0 +1,17 @@
+{
+	"name": "Test1",
+	
+	"tileset": {
+	
+		"brick": {
+			"type": "solid",
+			"img": "brick.bmp"
+		},
+		
+		"platform": {
+			"type": "platform",
+			"img": "platform.png"
+		}
+		
+	}
+}
