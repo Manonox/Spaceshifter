@@ -1,0 +1,6 @@
+{
+    "brick": {
+        "type": "solid",
+        "img": "brick.bmp"
+    }
+}

@@ -1,0 +1,11 @@
+from utils.vector import vector as vec
+
+ACT_ACCEPT = 0
+ACT_UP = 1
+ACT_LEFT = 2
+ACT_DOWN = 3
+ACT_RIGHT = 4
+ACT_JUMP = 5
+
+BLOCKSIDE = 16
+BLOCKSIZE = vec(BLOCKSIDE, BLOCKSIDE)
