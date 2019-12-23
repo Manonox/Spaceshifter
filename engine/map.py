@@ -28,6 +28,7 @@ class MapLoader(object):
             spawn = self.json["spawns"]["default"]
             self.app.player.pos = (vec(self.json["rooms"][spawn["room"]]["pos"]) + vec(spawn["pos"])) * BLOCKSIZE
             self.app.entlist.insertEnt(self.app.player)
+            self.app.camera.follow(self.app.player)
 
 
 class Tilemap(object):

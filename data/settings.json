@@ -5,6 +5,7 @@
         "down": "s",
         "right": "d",
         "return": "k",
-		"jump": "space"
+		"jump": "space",
+        "_editor_grab": "shift"
     }
 }

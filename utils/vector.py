@@ -71,6 +71,12 @@ class Vector2(object):
     def __str__(self):
         return str(round(self.__x, 2))+", "+str(round(self.__y, 2))
 
+    def __mod__(self, other):
+        if isinstance(other, Vector2):
+            return Vector2(self.__x % other.__x, self.__y % other.__y)
+        else:
+            return Vector2(self.__x % other, self.__y % other)
+
     def __sub__(self, other):
         if isinstance(other, float) or isinstance(other, int):
             return Vector2(self.__x-other, self.__y-other)

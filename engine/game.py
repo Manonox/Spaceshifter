@@ -4,6 +4,8 @@ from engine.entities import EntList, Player
 from engine.map import MapLoader, Tilemap
 from engine.render import Renderer, Camera
 from engine.settings import SettingsManager
+from engine.leveleditor import LevelEditor
+from engine.keys import Inputs
 from engine.ui import UI
 
 
@@ -20,8 +22,10 @@ class Game(object):
         self.paused = True
 
         self.maploader = MapLoader(self)
+        self.inputs = Inputs(self)
 
         self.settings = SettingsManager()
+        self.leveleditor = LevelEditor(self)
 
         self.camera = Camera(self)
 
@@ -34,9 +38,9 @@ class Game(object):
         self.ui = UI(self)
         self.ui.open("main")
 
-        self.updateReceivers = ["entlist", "camera"]
-        self.eventReceivers = ["entlist", "ui"]
-        self.drawReceivers = ["renderer", "entlist", "ui"]
+        self.updateReceivers = ["entlist", "leveleditor", "camera"]
+        self.eventReceivers = ["entlist", "leveleditor", "ui"]
+        self.drawReceivers = ["renderer", "entlist", "leveleditor","ui"]
 
     def start(self):
         self._running = True

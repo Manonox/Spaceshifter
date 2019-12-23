@@ -176,10 +176,7 @@ class Player(PhysEntity):
         self.pos += self.vel*dt
 
     def p_update(self, dt):
-        keys = pg.key.get_pressed()
-        action = self.app.settings
-
-        self.inputs = action.getAll(keys)
+        self.inputs = self.app.inputs.get()
 
         n = 4
         dt = dt/n

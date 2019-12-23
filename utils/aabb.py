@@ -56,6 +56,9 @@ class AABB(object):
     def intersect(self, other):
         return (abs(self.center.x - other.center.x) * 2 < (self.w + other.w)) and (abs(self.center.y - other.center.y) * 2 < (self.h + other.h))
 
+    def inside(self, v):
+        return ((self.l<=v.x<=self.r) and (self.t<=v.y<=self.b))
+
     @property
     def center(self):
         return (self.min + self.max)/2
@@ -66,3 +69,9 @@ class AABB(object):
 
     def draw(self, camera, color):
         pg.draw.rect(camera.app.surface, color, camera.getAABB(self).rect)
+
+    def __repr__(self):
+        return str(self.min) + " | " + str(self.max)
+
+    def __str__(self):
+        return str(self.min) + " | " + str(self.max)

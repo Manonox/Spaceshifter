@@ -31,15 +31,15 @@ class UI(object):
         action = self.app.settings
         if ev.type == pg.KEYDOWN:
             add = 0
-            if action.get(ev.key) == ACT_UP:
+            if ACT_UP in action.get(ev.key):
                 add = -1
-            if action.get(ev.key) == ACT_DOWN:
+            if ACT_DOWN in action.get(ev.key):
                 add = 1
 
             if self.current is not None:
                 self.selected = (self.selected+add) % self.menus[self.current][1]
 
-                if action.get(ev.key) == ACT_ACCEPT:
+                if ACT_ACCEPT in action.get(ev.key):
                     self.button(self.current, self.selected)
 
     def button(self, name, i):
@@ -47,10 +47,12 @@ class UI(object):
             if i == 0:
                 self.close()
                 self.app.maploader.load("test1")
+                self.app.leveleditor.editing = False
                 self.app.paused = False
             if i == 1:
                 self.close()
                 self.app.maploader.load("test1", False)
+                self.app.leveleditor.editing = True
                 self.app.paused = False
             if i == 3:
                 pg.event.post(pg.event.Event(pg.QUIT))
