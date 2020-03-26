@@ -11,7 +11,7 @@ class Renderer(object):
 
     def __init__(self, app):
         self.app = app
-        self.grid = True
+        self.grid = False
 
     def draw(self):
         surface = self.app.surface
@@ -29,49 +29,49 @@ class Renderer(object):
 
             div = origin % bs
             for ly in range(round(h/bs)+1):
-                pg.draw.rect(surface, (alph/2, alph/2, alph/2), pg.Rect((0, div.y+ly*bs), (w, 1)))
+                pg.draw.line(surface, (alph/1.2, alph/1.2, alph/1.2), (0, div.y+ly*bs), (w, div.y+ly*bs))
             for lx in range(round(w/bs)+1):
-                pg.draw.rect(surface, (alph/2, alph/2, alph/2), pg.Rect((div.x+lx*bs, 0), (1, h)))
+                pg.draw.line(surface, (alph/1.2, alph/1.2, alph/1.2), (div.x+lx*bs, 0), (div.x+lx*bs, h))
 
             if 0<=origin.y<=h:
-                pg.draw.rect(surface, (alph, 0, 0), pg.Rect((0, origin.y), (w, 1)))
+                pg.draw.line(surface, (alph, 0, 0), (0, origin.y), (w, origin.y))
             if 0<=origin.x<=w:
-                pg.draw.rect(surface, (0, alph, 0), pg.Rect((origin.x, 0), (1, h)))
+                pg.draw.line(surface, (0, alph, 0), (origin.x, 0), (origin.x, h))
 
         rooms = json["rooms"]
         for name, room in rooms.items():
             posraw = vec(room["pos"])
-            if name == self.app.leveleditor.roomGrab:
+            if name == self.app.leveleditor.roomGrab and self.app.leveleditor.editing and self.app.leveleditor.roomGType == 0:
                 posraw += round(self.app.leveleditor.roomMove/BLOCKSIDE)
             rpos = posraw
             rw, rh = room["size"]
 
-            tiles = room["tiles"]
+            aabb = AABB(rpos, rpos+vec(rw, rh))*BLOCKSIDE
+            if aabb.intersect(camera.aabb):
 
-            tilesize = camera.tilesize
-            # tilesize = math.floor(tilesize)
+                tiles = room["tiles"]
 
-            # OPTIMIZE: Stop rendering rooms outside of view
+                tilesize = camera.tilesize
 
-            for x in range(rw):
-                for y in range(rh):
-                    if x+y*rw < 0 or x+y*rw >= len(tiles):
-                        continue
-                    tilename = tiles[x+y*rw]
-                    drawtile = self.app.tilemap.get(tilename, None)
-                    if drawtile is not None:
-                        drawtile = drawtile["img"]
-                        # OPTIMIZE: move this *below* after camera = self.app.camera (using camera.zoom to rescale everything b4)
-                        drawtile = pg.transform.scale(drawtile, tilesize.vr)
-                        pos = (rpos+vec(x, y)) * tilesize - camera.corner
-                        surface.blit(drawtile, pos.vr)
+                for x in range(rw):
+                    for y in range(rh):
+                        if x+y*rw < 0 or x+y*rw >= len(tiles):
+                            continue
+                        tilename = tiles[x+y*rw]
+                        drawtile = self.app.tilemap.get(tilename, None)
+                        if drawtile is not None:
+                            drawtile = drawtile["img"]
+                            # OPTIMIZE: move this *below* after camera = self.app.camera (using camera.zoom to rescale everything b4)
+                            drawtile = pg.transform.scale(drawtile, tilesize.vr)
+                            pos = (rpos+vec(x, y)) * tilesize - camera.corner
+                            surface.blit(drawtile, pos.vr)
 
 
 class Camera(object):
 
     def __init__(self, app):
         self.app = app
-        self.pos = vec(16, 16)
+        self.pos = vec(0, 0)
         self.zoom = 1
         self.camFollow = None
 
@@ -83,6 +83,11 @@ class Camera(object):
     def corner(self):
         w, h = self.app.surface.get_size()
         return self.pos*self.zoom-vec(w, h)/2
+
+    @property
+    def aabb(self):
+        w, h = self.app.surface.get_size()
+        return AABB(self.getWorld(vec(0, 0)), self.getWorld(vec(w, h)))
 
     def getWorld(self, pos):
         w, h = self.app.surface.get_size()

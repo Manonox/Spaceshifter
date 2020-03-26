@@ -15,7 +15,7 @@ def collision(type, surrounding, vel, aabb, tileaabb, dt):
 
     for k, v in surrounding.items():
         if v is not None:
-            check[k] = True
+            check[k] = False
 
     response = {
         "top": False,

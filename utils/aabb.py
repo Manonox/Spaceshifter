@@ -5,16 +5,21 @@ class AABB(object):
 
     def __init__(self, min, max=None):
         if isinstance(min, AABB):
-            self.min, self.max = min.min, min.max
+            self.min, self.max = min.min.copy(), min.max.copy()
         elif max is not None:
-            self.min = min
-            self.max = max
+            self.min = min.copy()
+            self.max = max.copy()
         else:
             raise NotImplementedError
 
     @property
     def rect(self):
         return pg.Rect((self.l, self.t), (self.w, self.h))
+
+    def normalize(self):
+        nmin = vec(min(self.min.x, self.max.x), min(self.min.y, self.max.y))
+        self.max = vec(max(self.min.x, self.max.x), max(self.min.y, self.max.y))
+        self.min = nmin
 
     def move(self, v):
         return AABB(self.min+v, self.max+v)
@@ -45,10 +50,10 @@ class AABB(object):
     b = property(lambda self: self.max.y, setB)
 
     def setW(self, w):
-        self = AABB(self.min, self.max+vec(w-self.w, 0))
+        self.max = self.max + vec(w-self.w, 0)
 
     def setH(self, h):
-        self = AABB(self.min, self.max+vec(0, h-self.h))
+        self.max = self.max + vec(0, h-self.h)
 
     w = property(lambda self: (self.r-self.l), setW)
     h = property(lambda self: (self.b-self.t), setH)
@@ -70,8 +75,14 @@ class AABB(object):
     def draw(self, camera, color):
         pg.draw.rect(camera.app.surface, color, camera.getAABB(self).rect)
 
+    def __mul__(self, other):
+        return AABB(self.min*other, self.max*other)
+
     def __repr__(self):
         return str(self.min) + " | " + str(self.max)
 
     def __str__(self):
         return str(self.min) + " | " + str(self.max)
+
+    def copy(self):
+        return AABB(self.min.copy(), self.max.copy())

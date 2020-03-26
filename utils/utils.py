@@ -1,3 +1,5 @@
+from utils.vector import vector as vec
+import math
 def listget(l, i, n=None):
     try:
         return l[int(i)]
@@ -29,3 +31,28 @@ def getTile(lst, x, y, w, h):
     if x<0 or y<0 or x>=w or y>=h or (x+y*w)>=len(lst):
         return None
     return lst[x+y*w]
+
+def getTileN(x, y, w, h):
+    if x<0 or y<0 or x>=w or y>=h or x+y*w>=w*h or x+y*w<0:
+        return None
+    return x+y*w
+
+def getTileXY(i, w, h):
+    if i<0 or i>=w*h:
+        return None
+    x = i%w
+    y = math.floor(i/w)
+    return [x, y]
+
+def transformTiles(tiles, stPos, stSize, enPos, enSize):
+    rtiles = [["" for x in range(enSize[0])] for y in range(enSize[1])]
+    add = round(vec(stPos)-vec(enPos))
+    for i, tile in enumerate(tiles):
+        xy = (vec(getTileXY(i, stSize[0], stSize[1])) + add).vr
+        if xy[0]<0 or xy[1]<0 or xy[0]>=enSize[0] or xy[1]>=enSize[1]:
+            continue
+        rtiles[xy[1]][xy[0]] = tile
+    res = []
+    for y in rtiles:
+        res = res + y
+    return res

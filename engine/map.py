@@ -24,11 +24,12 @@ class MapLoader(object):
             self.app.entlist.delEnt(self.app.player.id)
 
         if addply:
-            self.app.player = Player()
-            spawn = self.json["spawns"]["default"]
-            self.app.player.pos = (vec(self.json["rooms"][spawn["room"]]["pos"]) + vec(spawn["pos"])) * BLOCKSIZE
-            self.app.entlist.insertEnt(self.app.player)
-            self.app.camera.follow(self.app.player)
+            spawn = self.json["spawns"].get("default", None)
+            if spawn is not None:
+                self.app.player = Player()
+                self.app.player.pos = (vec(self.json["rooms"][spawn["room"]]["pos"]) + vec(spawn["pos"])) * BLOCKSIZE
+                self.app.entlist.insertEnt(self.app.player)
+                self.app.camera.follow(self.app.player)
 
 
 class Tilemap(object):
@@ -45,5 +46,12 @@ class Tilemap(object):
                 "img": pg.image.load(pt.join("tileset", v["img"]))
             }
 
+    def pushTiles(self):
+        with open(pt.join("tileset", "data.json"), "w") as f:
+            json.dump(self.getAll(), f)
+
     def get(self, name, default=None):
         return self._data.get(name, default)
+
+    def getAll(self):
+        return self._data

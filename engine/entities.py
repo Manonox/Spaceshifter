@@ -178,7 +178,7 @@ class Player(PhysEntity):
     def p_update(self, dt):
         self.inputs = self.app.inputs.get()
 
-        n = 4
+        n = 3
         dt = dt/n
 
         for i in range(n):
@@ -205,7 +205,7 @@ class Player(PhysEntity):
         return (1 if down else 0) - (1 if up else 0)
 
     def p_jump(self):
-        self.vel = vec(self.vel.x+BLOCKSIDE*0.1*self.moveX, -BLOCKSIDE*20) # 40 , -105
+        self.vel = vec(self.vel.x+BLOCKSIDE*0.15*self.moveX, -BLOCKSIDE*20) # 40 , -105
         self.varJumpSpeed = self.vel.y
         self.setTimer("varJump", 0.2)
 
@@ -228,14 +228,13 @@ class Player(PhysEntity):
             self.vel = vec(approach(self.vel.x, max*moveX, runReduce*dt*mult), self.vel.y)
         else:
             self.vel = vec(approach(self.vel.x, max*moveX, runAccel*dt*mult), self.vel.y)
-
         if self.jump and self.jumpGrace:
             self.p_jump()
 
     def event(self, ev):
         if ev.type == pg.KEYDOWN:
             k = self.app.settings.get(ev.key)
-            if k == ACT_JUMP:
+            if ACT_JUMP in k:
                 self.setTimer("jump", 0.1)
 
     def p_gravity2(self, dt):
@@ -261,7 +260,7 @@ class Player(PhysEntity):
         if json is None:
             return
 
-        checkhull = vec(6, 6)
+        checkhull = vec(5, 5)
 
         self.status = {
             "top": False,
@@ -298,7 +297,6 @@ class Player(PhysEntity):
                                         if v:
                                             v = v["type"]
                                         surrounding[k] = v
-
                                 aabb = self.w_aabb.move(-vec(room["pos"])*BLOCKSIZE)
                                 tileaabb = AABB(tilepos, tilepos+BLOCKSIZE)
                                 r = collision(type, surrounding, self.vel, aabb, tileaabb, dt)
