@@ -205,18 +205,22 @@ class Player(PhysEntity):
         return (1 if down else 0) - (1 if up else 0)
 
     def p_jump(self):
-        self.vel = vec(self.vel.x+BLOCKSIDE*0.15*self.moveX, -BLOCKSIDE*20) # 40 , -105
+        self.vel = vec(self.vel.x+BLOCKSIDE*0.15*self.moveX, -BLOCKSIDE*40) # 40 , -105
         self.varJumpSpeed = self.vel.y
-        self.setTimer("varJump", 0.2)
+
+        self.setTimer("jump", 0)
+        self.setTimer("jumpGrace", 0)
+        self.setTimer("onGround", 0)
+        self.setTimer("varJump", 0.25)
 
     def p_accelerate(self, dt):
         left = self.inputs[ACT_LEFT]
         right = self.inputs[ACT_RIGHT]
 
-        max = BLOCKSIDE*10 # 90
+        max = BLOCKSIDE*25 # 90
         mult = 1 if self.onGround else 0.65
-        runAccel = max*11.1 # 1000
-        runReduce = max*4.4 # 400
+        runAccel = max*8 # 1000
+        runReduce = max*4.5 # 400
 
         sign = 1 if self.vel.x>0 else -1
         if self.vel.x==0:
@@ -245,14 +249,15 @@ class Player(PhysEntity):
             max = mf
             halfGrav = BLOCKSIDE*4.5
             mult = 0.5 if (abs(self.vel.y) < halfGrav and self.inputs[ACT_JUMP]) else 1
-            self.vel = vec(self.vel.x, approach(self.vel.y, max, BLOCKSIDE*100 * mult * dt))
+            self.vel = vec(self.vel.x, approach(self.vel.y, max, BLOCKSIDE*64 * mult * dt))
             self.p_variableJumping(dt)
 
     def p_variableJumping(self, dt):
+        if self.status["top"]:
+            self.setTimer("varJump", 0)
         if self.varJump:
-            if self.inputs[ACT_JUMP]:
-                self.vel = vec(self.vel.x, min(self.vel.y, self.varJumpSpeed))
-            else:
+            if not self.inputs[ACT_JUMP]:
+                self.vel = vec(self.vel.x, self.vel.y * 0.6)
                 self.setTimer("varJump", 0)
 
     def p_collisions(self, dt):
@@ -260,7 +265,9 @@ class Player(PhysEntity):
         if json is None:
             return
 
-        checkhull = vec(5, 5)
+        tilemap = self.app.tilemap
+
+        checkhull = vec(4, 4)
 
         self.status = {
             "top": False,
@@ -270,41 +277,54 @@ class Player(PhysEntity):
             "collided": False,
         }
 
-        rooms = json["rooms"]
-        for name, room in rooms.items():
-            rw, rh = room["size"]
-            tiles = room["tiles"]
-            roundedPos = math.floor((self.pos/BLOCKSIDE-vec(room["pos"]))-checkhull/2)
-            for ty in range(roundedPos.y, roundedPos.y + checkhull.y):
-                for tx in range(roundedPos.x, roundedPos.x + checkhull.x):
-                    tilepos = vec(tx, ty) * BLOCKSIDE
-                    tile = getTile(tiles, tx, ty, rw, rh)
-                    if tile:
-                        type = self.app.tilemap.get(tile)
-                        if type:
-                            type = type["type"]
-                            if type:
+        trueVel = self.vel.copy()
 
-                                surrounding = {
-                                    "l": getTile(tiles, tx-1, ty, rw, rh),
-                                    "r": getTile(tiles, tx+1, ty, rw, rh),
-                                    "t": getTile(tiles, tx, ty-1, rw, rh),
-                                    "b": getTile(tiles, tx, ty+1, rw, rh)
-                                }
-                                for k, v in surrounding.items():
-                                    if v:
-                                        v = self.app.tilemap.get(v)
-                                        if v:
-                                            v = v["type"]
-                                        surrounding[k] = v
-                                aabb = self.w_aabb.move(-vec(room["pos"])*BLOCKSIZE)
-                                tileaabb = AABB(tilepos, tilepos+BLOCKSIZE)
-                                r = collision(type, surrounding, self.vel, aabb, tileaabb, dt)
-                                self.pos += r["move"]
-                                self.vel = velocityCollision(type, self.vel, r)
-                                for k, v in self.status.items():
-                                    if r[k]:
-                                        self.status[k] = True
+        self.vel = vec(0, self.vel.y)
+
+        rooms = json["rooms"]
+        for tries in range(2):
+            for name, room in rooms.items():
+                rw, rh = room["size"]
+                margin = vec(1,1)
+                if not self.w_aabb.intersect(AABB((vec(room["pos"])-margin)*BLOCKSIDE, (vec(room["pos"])+vec(room["size"])+margin)*BLOCKSIDE)):
+                    continue
+                tiles = room["tiles"]
+                roundedPos = math.floor((self.pos/BLOCKSIDE-vec(room["pos"]))-checkhull/2)
+                for ty in range(roundedPos.y, roundedPos.y + checkhull.y):
+                    for tx in range(roundedPos.x, roundedPos.x + checkhull.x):
+                        tilepos = vec(tx, ty) * BLOCKSIDE
+                        tile = getTile(tiles, tx, ty, rw, rh)
+                        if tile:
+                            type = tilemap.get(tile)
+                            if type:
+                                type = type["type"]
+                                if type:
+
+                                    surrounding = {
+                                        "l": getTile(tiles, tx-1, ty, rw, rh),
+                                        "r": getTile(tiles, tx+1, ty, rw, rh),
+                                        "t": getTile(tiles, tx, ty-1, rw, rh),
+                                        "b": getTile(tiles, tx, ty+1, rw, rh)
+                                    }
+                                    for k, v in surrounding.items():
+                                        if v is not None:
+                                            v = tilemap.get(v)
+                                            if v is not None:
+                                                surrounding[k] = v["type"]
+                                    aabb = self.w_aabb.move(-vec(room["pos"])*BLOCKSIZE)
+                                    tileaabb = AABB(tilepos, tilepos+BLOCKSIZE)
+                                    r = collision(self.app, type, surrounding, self.vel, aabb, tileaabb, dt)
+                                    self.pos += r["move"]
+                                    velPrev = self.vel
+                                    self.vel = velocityCollision(type, self.vel, r)
+                                    for k, v in self.status.items():
+                                        if r[k]:
+                                            self.status[k] = True
+            if tries==0:
+                trueVel = vec(trueVel.x, self.vel.y)
+                self.vel = vec(trueVel.x, 0)
+            else:
+                self.vel = vec(self.vel.x, trueVel.y)
         if self.status["bottom"]:
             self.setTimer("onGround", 0.05)
         if self.onGround:

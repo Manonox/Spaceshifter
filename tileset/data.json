@@ -2,5 +2,13 @@
     "brick": {
         "type": "solid",
         "img": "brick.bmp"
-    }
+    },
+	"platform": {
+		"type": "platform",
+		"img": "platform.png"
+	},
+	"platform2": {
+		"type": "onlyB",
+		"img": "platform2.png"
+	}
 }

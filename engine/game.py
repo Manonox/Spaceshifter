@@ -8,6 +8,7 @@ from engine.leveleditor import LevelEditor
 from engine.keys import Inputs
 from engine.ui import UI
 from win32api import GetSystemMetrics
+from time import sleep
 
 
 class Game(object):
@@ -42,7 +43,7 @@ class Game(object):
         self.ui = UI(self)
 
         self.leveleditor = LevelEditor(self)
-        
+
         self.ui.open("main")
 
         self.updateReceivers = ["entlist", "leveleditor", "camera", "ui"]
