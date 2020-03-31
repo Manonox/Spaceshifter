@@ -4,7 +4,8 @@ import pygame as pg
 from utils.vector import vector as vec
 from engine.entities import EntList, Player
 from engine.vars import *
-
+from copy import deepcopy
+from copy import copy as shallowcopy
 from os import path as pt
 
 
@@ -34,24 +35,45 @@ class MapLoader(object):
 
 class Tilemap(object):
 
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         self._data = {}
+        self._dataRaw = {}
 
     def loadTiles(self):
         with open(pt.join("tileset", "data.json"), "r") as f:
             self._json = json.load(f)
         for k, v in self._json.items():
-            self._data[k] = {
-                "type": v["type"],
-                "img": pg.image.load(pt.join("tileset", v["img"]))
-            }
+            add = {k: v}
+            if v.get("multi",0)==1:
+                add = {}
+                for nk in ["-ul","-u","-ur", "-l","-c","-r", "-dl","-d","-dr"]:
+                    newv = deepcopy(v)
+                    newv["img"] = v["img"][0]+nk+v["img"][1]
+                    add[k+nk] = newv
+            for kk, vv in add.items():
+                try:
+                    image = pg.image.load(pt.join("tileset", vv["img"]))
+                except:
+                    print("Can't open '"+kk+"'!")
+                else:
+                    self._dataRaw[kk] = {
+                        "type": vv["type"],
+                        "nodraw": vv.get("nodraw",0),
+                        "img": image
+                    }
+        self.rescale(self.app.camera.tilesize)
 
     def pushTiles(self):
         with open(pt.join("tileset", "data.json"), "w") as f:
             json.dump(self.getAll(), f)
 
-    def get(self, name, default=None):
-        return self._data.get(name, default)
+    def rescale(self, tilesize=None):
+        if tilesize is None: tilesize = self.app.camera.tilesize
+        self._data = {k: {"type": v["type"], "nodraw": v.get("nodraw",0), "img": pg.transform.scale(v["img"], tilesize.vr)} for k, v in self._dataRaw.items()}
 
-    def getAll(self):
-        return self._data
+    def get(self, name, default=None, raw=False):
+        return self.getAll(raw).get(name, default)
+
+    def getAll(self, raw=False):
+        return self._dataRaw if raw else self._data

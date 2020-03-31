@@ -47,6 +47,12 @@ class LevelEditor(object):
                         },
                         "Save": {
                             "type": "button",
+                        },
+                        "Refresh": {
+                            "type": "button"
+                        },
+                        "Back to Menu": {
+                            "type": "button"
                         }
                     }
                 },
@@ -75,7 +81,7 @@ class LevelEditor(object):
                 },
                 "Blocks": {
                     "type": "gridlist",
-                    "listfunc": (lambda app: app.tilemap.getAll())
+                    "listfunc": (lambda app: app.tilemap.getAll(raw = True))
                 },
                 "Entities": {
                     "type": "list",
@@ -96,6 +102,7 @@ class LevelEditor(object):
         self.states = {}
         self.current = ""
         self.scrollBlocks = 0
+        self.app.ui.objects = []
 
         self.generateButtons(self.toolbar)
 
@@ -123,6 +130,7 @@ class LevelEditor(object):
         if len(self.history)==0: return
         data = self.history.pop(-1)
         self.app.maploader.json = data[0]
+        self.app.renderer.renderRooms()
         return data[1]
 
     def buttonPress(self, name, mbtn):
@@ -161,6 +169,22 @@ class LevelEditor(object):
             else:
                 self.save()
 
+        if name == "Refresh":
+            self.buttons.clear()
+            self.states.clear()
+            self.buttons = {}
+            self.states = {}
+            self.current = ""
+            self.scrollBlocks = 0
+
+            self.app.ui.objects = []
+            self.app.tilemap.loadTiles()
+            self.generateButtons(self.toolbar)
+
+        if name == "Back to Menu":
+            self.editing = False
+            self.app.ui.open("main")
+
         if name == "Undo":
             self.undo()
 
@@ -177,7 +201,8 @@ class LevelEditor(object):
                 return True
         return False
 
-    def generateButtons(self, data, parent=None, offset=(0, 0)):
+    def generateButtons(self, dataRaw, parent=None, offset=(0, 0)):
+        data = deepcopy(dataRaw)
         type = data["type"]
         left = offset[0]
         top = offset[1]
@@ -224,7 +249,7 @@ class LevelEditor(object):
             fu = data.get("listfunc", None)
             if fu:
                 for k, v in fu(self.app).items():
-                    btn = Button(self.app, pg.Rect((left+numbr*size, top+size*(numbr//width)), (size, size)))
+                    btn = Button(self.app, pg.Rect((left+(numbr%width)*size, top+size*(numbr//width)), (size, size)))
                     btn.name = pg.transform.scale(v["img"], (bsize, bsize))
                     btn.name2 = "__"+k
                     self.buttons[k] = btn
@@ -256,28 +281,43 @@ class LevelEditor(object):
         if inputs[ACT_MOUSE3]:
             self.app.camera.pos -= mMove
 
-        if inputs[ACT_MOUSE1] and not self.buttonHovered:
-            if self.roomGrab:
-                self.roomMove += (vec() if inputs[ACT_MOUSE3] else mMove) + vec(mX, mY) * dt * speed / camera.zoom
-            elif self.currentBlock:
-                rooms = json["rooms"]
-                mpos = math.floor(camera.getWorld(vec(pg.mouse.get_pos()))/BLOCKSIDE)
-                for name, room in rooms.items():
-                    rpos = vec(room["pos"])
-                    rtile = mpos-rpos
-                    tile = getTileN(rtile.x, rtile.y, room["size"][0], room["size"][1])
-                    if tile is not None:
-                        room["tiles"][tile] = self.currentBlock
+        if (inputs[ACT_MOUSE1] or inputs[ACT_MOUSE2]) and self.roomEditing is None:
+            traceStart = self.movePos
+            traceEnd = vec(pg.mouse.get_pos())
+            steps = max(round(traceStart.distance(traceEnd)/BLOCKSIDE*4), 2)
+            change = {}
+            for step in range(steps):
+                blockinsert = traceStart+(traceEnd-traceStart)*step/(steps-1)
 
-        if inputs[ACT_MOUSE2] and not self.buttonHovered and not inputs[ACT_MOUSE1]:
-            rooms = json["rooms"]
-            mpos = math.floor(camera.getWorld(vec(pg.mouse.get_pos()))/BLOCKSIDE)
-            for name, room in rooms.items():
-                rpos = vec(room["pos"])
-                rtile = mpos-rpos
-                tile = getTileN(rtile.x, rtile.y, room["size"][0], room["size"][1])
-                if tile is not None:
-                    room["tiles"][tile] = ""
+                if inputs[ACT_MOUSE1] and not self.buttonHovered:
+                    if self.roomGrab:
+                        if step==0:
+                            self.roomMove += (vec() if inputs[ACT_MOUSE3] else mMove) + vec(mX, mY) * dt * speed / camera.zoom
+                    elif self.currentBlock and not inputs[ACT_EDITOR_GRAB]:
+                        rooms = json["rooms"]
+                        mpos = math.floor(camera.getWorld(blockinsert)/BLOCKSIDE)
+                        for name, room in rooms.items():
+                            rpos = vec(room["pos"])
+                            rtile = mpos-rpos
+                            tile = getTileN(rtile.x, rtile.y, room["size"][0], room["size"][1])
+                            if tile is not None:
+                                room["tiles"][tile] = self.currentBlock
+                                change[name] = True
+
+
+                if inputs[ACT_MOUSE2] and not self.buttonHovered and not inputs[ACT_MOUSE1] and not inputs[ACT_EDITOR_GRAB]:
+                    rooms = json["rooms"]
+                    mpos = math.floor(camera.getWorld(blockinsert)/BLOCKSIDE)
+                    for name, room in rooms.items():
+                        rpos = vec(room["pos"])
+                        rtile = mpos-rpos
+                        tile = getTileN(rtile.x, rtile.y, room["size"][0], room["size"][1])
+                        if tile is not None:
+                            room["tiles"][tile] = ""
+                            change[name] = True
+
+            for k, v in change.items():
+                self.app.renderer.renderRoom(k)
 
         self.movePos = vec(pg.mouse.get_pos())
 
@@ -381,12 +421,21 @@ class LevelEditor(object):
                     rsize = vec(room["size"])*BLOCKSIDE
                     raabb = camera.getAABB(AABB(rpos, rpos+rsize))
                     raabbRename = raabb.copy()
+                    raabbCopy = raabb.copy()
                     raabbDelete = raabb.copy()
-                    raabbRename.max.y = raabb.center.y
+                    raabbRename.max = raabb.center.copy()
+                    raabbCopy.min.x = raabb.center.x
+                    raabbCopy.max.y = raabb.center.y
                     raabbDelete.min.y = raabb.center.y
                     if raabbRename.inside(vec(ev.pos)):
                         self.roomNameEdit = self.roomEditing
                         self.roomNameNew = ""
+                    if raabbCopy.inside(vec(ev.pos)):
+                        self.addToHistory("Room copy")
+                        json["rooms"][self.roomEditing+"_copy"] = deepcopy(json["rooms"][self.roomEditing])
+                        newroom = json["rooms"][self.roomEditing+"_copy"]
+                        newroom["pos"] = (self.app.camera.getWorld(vec(self.app.surface.get_size())/2)/BLOCKSIDE-vec(newroom["size"])/2).vr
+                        self.app.renderer.renderRoom(self.roomEditing+"_copy")
                     if raabbDelete.inside(vec(ev.pos)):
                         self.addToHistory("Room deleted")
                         del(json["rooms"][self.roomEditing])
@@ -486,6 +535,8 @@ class LevelEditor(object):
                         }
                     self.newRoomStart = None
 
+                self.app.renderer.renderRooms()
+
             if ev.button == 3:
                 self.roomEditing = None and self.roomGrab is None
                 if self.inputs[ACT_EDITOR_GRAB]:
@@ -508,6 +559,7 @@ class LevelEditor(object):
 
                     if propertiesRoom is not None:
                         self.roomEditing = propertiesRoom
+                self.app.renderer.renderRooms()
 
     def drawUI(self, data, name=None):
         surface = self.app.surface
@@ -576,14 +628,21 @@ class LevelEditor(object):
                 surface.blit(surf, (raabb.min+vec(2, 0)).vr)
 
             raabbRename = raabb.copy()
+            raabbCopy = raabb.copy()
             raabbDelete = raabb.copy()
-            raabbRename.max.y = raabb.center.y
+            raabbRename.max = raabb.center.copy()
+            raabbCopy.min.x = raabb.center.x
+            raabbCopy.max.y = raabb.center.y
             raabbDelete.min.y = raabb.center.y
 
             if name == self.roomEditing:
                 pg.draw.rect(surface, (100,100,100), raabbRename.rect)
                 surf = font.render("Rename", True, (255, 255, 255))
                 surface.blit(surf, (raabbRename.center-vec(surf.get_size())/2).vr)
+
+                pg.draw.rect(surface, (50,150,50), raabbCopy.rect)
+                surf = font.render("Copy", True, (255, 255, 255))
+                surface.blit(surf, (raabbCopy.center-vec(surf.get_size())/2).vr)
 
                 pg.draw.rect(surface, (150,50,50), raabbDelete.rect)
                 surf = font.render("Delete", True, (255, 255, 255))
@@ -615,7 +674,7 @@ class LevelEditor(object):
             surf2 = surf2.convert_alpha()
             surface.blit(surf2, (5, h-surf.get_size()[1]), special_flags=pg.BLEND_RGBA_ADD)
 
-        block = self.app.tilemap.get(self.currentBlock)
+        block = self.app.tilemap.get(self.currentBlock, raw = True)
         if block:
             surface.blit(pg.transform.scale(block["img"], (BLOCKSIDE, BLOCKSIDE)), (vec(pg.mouse.get_pos())+vec(15, 15)).vr)
 

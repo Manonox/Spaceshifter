@@ -74,7 +74,7 @@ class UI(object):
         self.app = app
         self.menus = {
             "main": [False, 4],
-            "pause": [False, 4]
+            "pause": [False, 2]
         }
 
         self.objects = []
@@ -89,11 +89,20 @@ class UI(object):
         self.close()
         self.menus[name][0] = True
         self.current = name
+        self.selected = 0
 
     def close(self):
         self.selected = 0
         self.current = None
         self.menus = {n: [False, self.menus[n][1]] for n in self.menus.keys()}
+
+    def toggle(self, name):
+        if self.menus[name][0]:
+            self.close()
+            return False
+        else:
+            self.open(name)
+            return True
 
     def event(self, ev):
         for obj in self.objects:
@@ -113,12 +122,16 @@ class UI(object):
                 if ACT_ACCEPT in action.get(ev.key):
                     self.button(self.current, self.selected)
 
+            if not self.main and (ACT_PAUSE in action.get(ev.key)):
+                self.app.paused = self.toggle("pause")
+
     def update(self, dt):
         for obj in self.objects:
             obj.update(dt)
 
     def new(self, obj):
         self.objects.append(obj)
+        return len(self.objects)-1
 
     def button(self, name, i):
         if name == "main":
@@ -128,19 +141,31 @@ class UI(object):
                 self.app.leveleditor.editing = False
                 self.app.paused = False
                 self.app.renderer.grid = False
+                self.app.renderer.renderRooms()
             if i == 1:
                 self.close()
                 self.app.maploader.load("test1", False)
                 self.app.leveleditor.editing = True
                 self.app.paused = False
                 self.app.renderer.grid = True
+                self.app.renderer.renderRooms()
             if i == 3:
                 pg.event.post(pg.event.Event(pg.QUIT))
+        if name == "pause":
+            if i == 0:
+                self.close()
+                self.app.paused = False
+            if i == 1:
+                self.open("main")
+                self.app.paused = True
+                self.app.camera.stopFollow()
+                self.app.entlist.delAll()
 
     def draw(self):
         surface = self.app.surface
         w, h = surface.get_size()
         if self.main:
+            pg.draw.rect(surface, (30, 30, 30, 140), pg.Rect(0,0, surface.get_size()[0], surface.get_size()[1]))
             font = pg.font.SysFont("Roboto", 30, False, True)
             wd = 0.7
             padTop = 0.1
@@ -149,7 +174,22 @@ class UI(object):
             for i, n in enumerate(["Play", "Map editor", "Settings", "Quit"]):
                 pressed = i == self.selected
                 rect = pg.Rect((1-wd)/2*w, (padTop+(step+sh)*i)*h, wd*w, sh*h)
-                pg.draw.rect(surface, (70, 70, 70) if pressed else (100, 100, 100), rect)
-                surf = font.render(n, True, (255, 255, 255))
+                pg.draw.rect(surface, (70, 70, 70) if not pressed else (150, 150, 150), rect)
+                surf = font.render(n, True, (255, 255, 255) if not pressed else (255, 200, 150))
+                fs = surf.get_size()
+                surface.blit(surf, rect.move(rect.width/2-fs[0]/2, rect.height/2-fs[1]/2))
+
+        if self.pause:
+            pg.draw.rect(surface, (30, 30, 30, 140), pg.Rect(0,0, surface.get_size()[0], surface.get_size()[1]))
+            font = pg.font.SysFont("Roboto", 30, False, True)
+            wd = 0.7
+            padTop = 0.3
+            sh = 0.1
+            step = 0.12
+            for i, n in enumerate(["Resume", "Back to Menu"]):
+                pressed = i == self.selected
+                rect = pg.Rect((1-wd)/2*w, (padTop+(step+sh)*i)*h, wd*w, sh*h)
+                pg.draw.rect(surface, (70, 70, 70) if not pressed else (150, 150, 150), rect)
+                surf = font.render(n, True, (255, 255, 255) if not pressed else (255, 200, 150))
                 fs = surf.get_size()
                 surface.blit(surf, rect.move(rect.width/2-fs[0]/2, rect.height/2-fs[1]/2))

@@ -7,8 +7,8 @@ from engine.settings import SettingsManager
 from engine.leveleditor import LevelEditor
 from engine.keys import Inputs
 from engine.ui import UI
-from win32api import GetSystemMetrics
-from time import sleep
+from engine.debug import Debugger
+#from win32api import GetSystemMetrics
 
 
 class Game(object):
@@ -19,7 +19,7 @@ class Game(object):
 
         self.size = self.w, self.h = w, h
         self.surface = pg.display.set_mode(
-            ((GetSystemMetrics(0), GetSystemMetrics(1)) if fullscreen else self.size),
+            ((1920, 1080) if fullscreen else self.size),
             pg.HWSURFACE | pg.DOUBLEBUF | (pg.FULLSCREEN if fullscreen else 0)
         )
         self.__fullscreen = fullscreen
@@ -34,7 +34,7 @@ class Game(object):
 
         self.camera = Camera(self)
 
-        self.tilemap = Tilemap()
+        self.tilemap = Tilemap(self)
         self.tilemap.loadTiles()
 
         self.entlist = EntList(self)
@@ -44,11 +44,13 @@ class Game(object):
 
         self.leveleditor = LevelEditor(self)
 
+        self.debugger = Debugger(self)
+
         self.ui.open("main")
 
-        self.updateReceivers = ["entlist", "leveleditor", "camera", "ui"]
-        self.eventReceivers = ["entlist", "leveleditor", "ui"]
-        self.drawReceivers = ["renderer", "entlist", "leveleditor","ui"]
+        self.updateReceivers = ["entlist", "leveleditor", "camera", "ui", "debugger"]
+        self.eventReceivers = ["entlist", "leveleditor", "ui", "debugger"]
+        self.drawReceivers = ["entlist", "renderer", "leveleditor","ui", "debugger"]
 
     def start(self):
         self._running = True
@@ -63,7 +65,11 @@ class Game(object):
         self.on_quit()
 
     def on_event(self, ev):
-        results = [self.event(ev)] + [getattr(self, rc).event(ev) for rc in self.eventReceivers]
+        results = [self.event(ev)]
+        for rc in self.eventReceivers:
+            self.debugger.start_stopwatch(rc+" event")
+            results.append(getattr(self, rc).event(ev))
+            self.debugger.stop_stopwatch(rc+" event")
 
     def event(self, ev):
         if ev.type == pg.QUIT:
@@ -74,16 +80,25 @@ class Game(object):
                 self.fullscreen = not self.fullscreen
 
     def on_update(self, dt):
+        self.debugger.dt = dt
         if self.paused:
             return
-        results = [self.update(dt)] + [getattr(self, rc).update(dt) for rc in self.updateReceivers]
+        results = [self.update(dt)]
+        for rc in self.updateReceivers:
+            self.debugger.start_stopwatch(rc+" update")
+            results.append(getattr(self, rc).update(dt))
+            self.debugger.stop_stopwatch(rc+" update")
 
     def update(self, dt):
         pass
 
     def on_render(self):
         self.surface.fill((0, 0, 0))
-        results = [getattr(self, rc).draw() for rc in self.drawReceivers]
+        results = []
+        for rc in self.drawReceivers:
+            self.debugger.start_stopwatch(rc+" draw")
+            results.append(getattr(self, rc).draw())
+            self.debugger.stop_stopwatch(rc+" draw")
         pg.display.update()
 
     def setFullscreen(self, state):

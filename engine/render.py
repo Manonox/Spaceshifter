@@ -12,14 +12,58 @@ class Renderer(object):
     def __init__(self, app):
         self.app = app
         self.grid = False
+        self.renderedRooms = {}
+
+    def renderRoom(self, name):
+        camera = self.app.camera
+        json = self.app.maploader.json
+        if json is None:
+            return
+        rooms = json["rooms"]
+        room = rooms[name]
+
+        rw, rh = room["size"]
+
+        surface = self.renderedRooms[name] = pg.Surface((vec(rw, rh)*camera.tilesize).vr, pg.SRCALPHA)
+
+        tiles = room["tiles"]
+
+        tilesize = camera.tilesize
+
+        for x in range(rw):
+            for y in range(rh):
+                if x+y*rw < 0 or x+y*rw >= len(tiles):
+                    continue
+                tilename = tiles[x+y*rw]
+                drawtile = self.app.tilemap.get(tilename, None)
+                if drawtile is not None and (drawtile.get("nodraw",0)==0 or self.app.leveleditor.editing):
+                    drawtile = drawtile["img"]
+                    pos = (vec(x, y)) * tilesize
+                    surface.blit(drawtile, pos.vr)
+
+        return surface
+
+    def renderRooms(self):
+        json = self.app.maploader.json
+        if json is None:
+            return
+        rooms = json["rooms"]
+        for name, room in rooms.items():
+            self.renderRoom(name)
 
     def draw(self):
+        if self.app.ui.main:
+            return
         surface = self.app.surface
         w, h = surface.get_size()
         json = self.app.maploader.json
         if json is None:
             return
         camera = self.app.camera
+
+        tilesize = camera.tilesize
+
+        self.app.debugger.start_stopwatch("Grid")
 
         if self.grid:
             alph = 30
@@ -38,40 +82,26 @@ class Renderer(object):
             if 0<=origin.x<=w:
                 pg.draw.line(surface, (0, alph, 0), (origin.x, 0), (origin.x, h))
 
+        self.app.debugger.stop_stopwatch("Grid")
+
         rooms = json["rooms"]
         for name, room in rooms.items():
             posraw = vec(room["pos"])
             if name == self.app.leveleditor.roomGrab and self.app.leveleditor.editing and self.app.leveleditor.roomGType == 0:
                 posraw += round(self.app.leveleditor.roomMove/BLOCKSIDE)
-            rpos = posraw
-            rw, rh = room["size"]
-
-            aabb = AABB(rpos, rpos+vec(rw, rh))*BLOCKSIDE
-            if aabb.intersect(camera.aabb):
-
-                tiles = room["tiles"]
-
-                tilesize = camera.tilesize
-
-                for x in range(rw):
-                    for y in range(rh):
-                        if x+y*rw < 0 or x+y*rw >= len(tiles):
-                            continue
-                        tilename = tiles[x+y*rw]
-                        drawtile = self.app.tilemap.get(tilename, None)
-                        if drawtile is not None:
-                            drawtile = drawtile["img"]
-                            # OPTIMIZE: move this *below* after camera = self.app.camera (using camera.zoom to rescale everything b4)
-                            drawtile = pg.transform.scale(drawtile, tilesize.vr)
-                            pos = (rpos+vec(x, y)) * tilesize - camera.corner
-                            surface.blit(drawtile, pos.vr)
-
+            rpos = posraw*tilesize
+            if camera.getAABB(AABB(posraw*BLOCKSIDE, posraw*BLOCKSIDE+vec(room["size"])*BLOCKSIDE)).intersect(AABB(vec(0,0), vec(w,h))):
+                roomSurf = self.renderedRooms.get(name, None)
+                if roomSurf is None:
+                    roomSurf = self.renderRoom(name)
+                surface.blit(roomSurf, (rpos-camera.corner).vr)
 
 class Camera(object):
 
     def __init__(self, app):
         self.app = app
         self.pos = vec(0, 0)
+        self.lastzoom = 0
         self.zoom = 1
         self.camFollow = None
 
@@ -102,10 +132,15 @@ class Camera(object):
 
     def follow(self, flw):
         self.camFollow = flw
+        self.pos = flw.pos
 
     def stopFollow(self):
         self.camFollow = None
 
     def update(self, dt):
-        if self.camFollow:
+        if self.lastzoom!=self.zoom:
+            self.lastzoom = self.zoom
+            self.app.tilemap.rescale()
+            self.app.renderer.renderRooms()
+        if self.camFollow is not None:
             self.pos = lerp(self.pos, self.camFollow.pos, 1 - (0.01/1)**dt)

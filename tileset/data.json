@@ -1,4 +1,9 @@
 {
+	"clip": {
+		"type": "solid",
+		"nodraw": 1,
+		"img": "nodraw.png"
+	},
     "brick": {
         "type": "solid",
         "img": "brick.bmp"
@@ -10,5 +15,83 @@
 	"platform2": {
 		"type": "onlyB",
 		"img": "platform2.png"
+	},
+
+
+	"stone": {
+		"type": "solid",
+		"multi": 1,
+		"img": ["stone",".png"]
+	},
+
+
+	"path": {
+		"type": "none",
+		"img": "path.png"
+	},
+
+	"grassL-u":{
+		"type": "none",
+		"img": "grassL-u.png"
+	},
+	"grassL-ur":{
+		"type": "none",
+		"img": "grassL-ur.png"
+	},
+	"grassL-ul":{
+		"type": "none",
+		"img": "grassL-ul.png"
+	},
+
+	"door-1":{
+		"type": "solid",
+		"img": "door-1.png"
+	},
+	"door-2":{
+		"type": "solid",
+		"img": "door-2.png"
+	},
+	"door-3":{
+		"type": "solid",
+		"img": "door-3.png"
+	},
+	"door-4":{
+		"type": "solid",
+		"img": "door-4.png"
+	},
+	"door-5":{
+		"type": "solid",
+		"img": "door-5.png"
+	},
+	"door-6":{
+		"type": "solid",
+		"img": "door-6.png"
+	},
+
+	"house":{
+		"type": "solid",
+		"multi": 1,
+		"img": ["house", ".png"]
+	},
+	"house-c-p":{
+		"type": "solid",
+		"img": "house-c-p.png"
+	},
+
+
+	"glass":{
+		"type": "solid",
+		"multi": 1,
+		"img": ["glass", ".png"]
+	},
+
+	"sign-1":{
+		"type": "solid",
+		"img": "sign-1.png"
+	},
+	"sign-2":{
+		"type": "solid",
+		"img": "sign-2.png"
 	}
+
 }

@@ -44,6 +44,9 @@ class EntList(object):
         if self.getById(id) is not None:
             del self.__dict[str(id)]
 
+    def delAll(self):
+        self.__dict.clear()
+
     def update(self, dt):
         for ent in self.all:
             ent.update(dt)
@@ -95,6 +98,7 @@ class Entity(BaseEntity):
         self.__pos = pullValues(0, 'pos', args, kwargs, vec(0, 0))
         self.__aabb = pullValues(1, 'aabb', args, kwargs, AABB(vec(0, 0), vec(0, 0)))
         self.__sprite = None
+        self.drawShift = vec(0,0)
 
     def setPos(self, pos):
         self.__pos = vec(pos)
@@ -119,7 +123,9 @@ class Entity(BaseEntity):
     def draw(self):
         if self.__sprite:
             drawaabb = self.app.camera.getAABB(self.w_aabb)
-            self.app.surface.blit(pg.transform.scale(self.__sprite.surface, drawaabb.size.vr), drawaabb.min.vr)
+            zoom = self.app.camera.zoom
+            sprsize = vec(self.__sprite.surface.get_size())*zoom*2
+            self.app.surface.blit(pg.transform.scale(self.__sprite.surface, sprsize.vr), (drawaabb.center - sprsize + self.drawShift*zoom).vr)
 
 
 class PhysEntity(Entity):
@@ -140,6 +146,7 @@ class Player(PhysEntity):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.drawShift = vec(15,15)
         self.aabb = AABB(vec(-15, -30), vec(15, 0))
 
         self.isControlled = kwargs.get("control", True)
@@ -155,6 +162,8 @@ class Player(PhysEntity):
 
         self.timers = {}
         self.varJumpSpeed = 0
+        self.lastVel = self.vel
+        self.lastOnGround = False
 
         self.inputs = None
 
@@ -178,8 +187,10 @@ class Player(PhysEntity):
     def p_update(self, dt):
         self.inputs = self.app.inputs.get()
 
-        n = 3
+        n = 2
         dt = dt/n
+
+        self.app.debugger.start_stopwatch("Entity physics")
 
         for i in range(n):
 
@@ -191,6 +202,8 @@ class Player(PhysEntity):
             self.p_updatePos(dt)
 
             self.p_gravity2(dt)
+
+        self.app.debugger.stop_stopwatch("Entity physics")
 
     @property
     def moveX(self):
@@ -207,6 +220,8 @@ class Player(PhysEntity):
     def p_jump(self):
         self.vel = vec(self.vel.x+BLOCKSIDE*0.15*self.moveX, -BLOCKSIDE*40) # 40 , -105
         self.varJumpSpeed = self.vel.y
+
+        self.sprite.sizeMul = vec(0.8,1.2)
 
         self.setTimer("jump", 0)
         self.setTimer("jumpGrace", 0)
@@ -298,7 +313,7 @@ class Player(PhysEntity):
                             type = tilemap.get(tile)
                             if type:
                                 type = type["type"]
-                                if type:
+                                if type and type!="None":
 
                                     surrounding = {
                                         "l": getTile(tiles, tx-1, ty, rw, rh),
@@ -329,15 +344,38 @@ class Player(PhysEntity):
             self.setTimer("onGround", 0.05)
         if self.onGround:
             self.setTimer("jumpGrace", 0.1)
+            self.vel = vec(self.vel.x, -1)
 
     def t_update(self, dt):
         for k, v in self.timers.items():
             self.timers[k] = v - dt
 
+    def a_update(self, dt):
+        grnd = self.jumpGrace
+        if grnd:
+            if abs(self.vel.x)<10:
+                self.sprite.play("idle")
+            if abs(self.vel.x)>=10:
+                self.sprite.play("run")
+        else:
+            self.sprite.play("air")
+
+        if self.inputs[ACT_LEFT] and not self.inputs[ACT_RIGHT]:
+            self.sprite.flip = True
+        if self.inputs[ACT_RIGHT] and not self.inputs[ACT_LEFT]:
+            self.sprite.flip = False
+
+        if not self.lastOnGround and grnd:
+            self.sprite.sizeMul = vec(1.1, 0.9)
+
+        self.lastVel = self.vel
+        self.lastOnGround = grnd
+
     def update(self, dt):
         self.t_update(dt)
         self.p_update(dt)
         super().update(dt)
+        self.a_update(dt)
 
     def draw(self):
         super().draw()

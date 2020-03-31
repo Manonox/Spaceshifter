@@ -85,6 +85,9 @@ class SettingsManager(object):
         if name == "caps":
             result.append(ACT_CAPSLOCK)
 
+        if name == "escape":
+            result.append(ACT_PAUSE)
+
         if name == "editor_grab":
             result.append(ACT_EDITOR_GRAB)
 

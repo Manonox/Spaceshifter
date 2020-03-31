@@ -1,5 +1,7 @@
 {
 	"animations": {
-		"idle": "idle"
+		"idle": "idle",
+		"run": "run",
+		"air": "air"
 	}
 }

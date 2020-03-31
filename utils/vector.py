@@ -113,6 +113,9 @@ class Vector2(object):
     def dot(self, other):
         return self.__x*other.x+self.__y*other.y
 
+    def distance(self, other):
+        return Vector2(self.__x-other.x, self.__y-other.y).length
+
     def copy(self):
         return Vector2(self.__x, self.__y)
 
