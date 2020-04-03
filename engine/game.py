@@ -93,7 +93,7 @@ class Game(object):
         pass
 
     def on_render(self):
-        self.surface.fill((0, 0, 0))
+        self.surface.fill((100, 155, 255))
         results = []
         for rc in self.drawReceivers:
             self.debugger.start_stopwatch(rc+" draw")

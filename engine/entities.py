@@ -221,7 +221,7 @@ class Player(PhysEntity):
         self.vel = vec(self.vel.x+BLOCKSIDE*0.15*self.moveX, -BLOCKSIDE*40) # 40 , -105
         self.varJumpSpeed = self.vel.y
 
-        self.sprite.sizeMul = vec(0.8,1.2)
+        self.sprite.sizeMul = vec(0.8,1)
 
         self.setTimer("jump", 0)
         self.setTimer("jumpGrace", 0)
